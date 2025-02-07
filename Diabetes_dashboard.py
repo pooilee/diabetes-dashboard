@@ -69,34 +69,28 @@ X_scaled = scaler.fit_transform(X)
 st.write("### Exploratory Data Analysis (EDA)")
 
 # Feature Distributions
-st.write("### Feature Distributions")
-fig, ax = plt.subplots(figsize=(15, 10))
-df_no_outliers.hist(bins=20, ax=ax)
-st.pyplot(fig)
+if st.checkbox("Show Feature Distributions"):
+    fig, ax = plt.subplots(figsize=(15, 10))
+    df_no_outliers.hist(bins=20, ax=ax)
+    st.pyplot(fig)
 
 # Boxplots
-st.write("### Boxplots of Features")
-fig, ax = plt.subplots(figsize=(15, 10))
-sns.boxplot(data=df_no_outliers, orient="h", ax=ax)
-st.pyplot(fig)
-
-# Visualization
-st.write("### Data Visualization")
-fig, ax = plt.subplots(figsize=(12, 6))
-sns.boxplot(data=df_no_outliers, ax=ax)
-st.pyplot(fig)
+if st.checkbox("Show Boxplots"):
+    fig, ax = plt.subplots(figsize=(15, 10))
+    sns.boxplot(data=df_no_outliers, orient="h", ax=ax)
+    st.pyplot(fig)
 
 # Correlation Heatmap
-st.write("### Correlation Heatmap")
-fig, ax = plt.subplots(figsize=(12, 8))
-sns.heatmap(df_no_outliers.corr(), annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
-st.pyplot(fig)
+if st.checkbox("Show Correlation Heatmap"):
+    fig, ax = plt.subplots(figsize=(12, 8))
+    sns.heatmap(df_no_outliers.corr(), annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
+    st.pyplot(fig)
 
 # Pairplot
-st.write("### Pairplot of Features")
-st.write("This visualization helps understand relationships between features.")
-pairplot_fig = sns.pairplot(df_no_outliers, hue="Outcome", palette="Set1")
-st.pyplot(pairplot_fig)
+if st.checkbox("Show Pairplot of Features"):
+    sample_df = df_no_outliers.sample(300) if len(df_no_outliers) > 300 else df_no_outliers
+    pairplot_fig = sns.pairplot(sample_df, hue="Outcome", palette="Set1")
+    st.pyplot(pairplot_fig)
 
 # SMOTE Balancing
 df_X_train, df_X_test, df_y_train, df_y_test = train_test_split(X, y, test_size=0.2, random_state=42)
