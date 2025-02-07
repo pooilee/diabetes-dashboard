@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.impute import SimpleImputer
 
-df = pd.read_csv(r"C:\UTM Master\Agile Data Science\diabetes.csv")
+df = pd.read_csv("diabetes.csv")
 df.head()
 print(df.head())
 
