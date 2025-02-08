@@ -16,124 +16,125 @@ from sklearn.metrics import (
     roc_auc_score, roc_curve, classification_report, ConfusionMatrixDisplay
 )
 
-# Streamlit Title
-st.title("Diabetes Prediction Dashboard")
+# Set Streamlit Page Config
+st.set_page_config(page_title="Diabetes Prediction Dashboard", layout="wide")
+
+# Title
+st.title("🔬 Diabetes Prediction Dashboard")
 
 # Load dataset
+@st.cache_data
 def load_data():
     df = pd.read_csv("diabetes.csv")
     return df
 
 df = load_data()
-st.write("### Data Preview")
-st.dataframe(df.head())
-
-# Show dataset info
-st.write("### Dataset Information")
-st.write(f"Shape: {df.shape}")
-st.write(df.dtypes)
+st.sidebar.subheader("🔍 Data Overview")
+st.sidebar.write(f"📊 Shape: {df.shape}")
+st.sidebar.write(f"🔢 Data Types: {df.dtypes}")
 
 # Handling missing values
-st.write("### Handling Missing Values")
 zero_columns = ['SkinThickness', 'Insulin', 'Glucose', 'BloodPressure', 'BMI']
 df[zero_columns] = df[zero_columns].replace(0, np.nan)
-st.write("Missing Values Before Imputation:")
-st.write(df.isnull().sum())
 
-# Impute missing values
 imputer = SimpleImputer(strategy='median')
 df[zero_columns] = imputer.fit_transform(df[zero_columns])
-st.write("Missing Values After Imputation:")
-st.write(df.isnull().sum())
 
 # Remove duplicates
 df = df.drop_duplicates()
-st.write(f"Dataset shape after removing duplicates: {df.shape}")
 
-# Handling Outliers
-Q1 = df.quantile(0.20)
-Q3 = df.quantile(0.80)
+# Handling Outliers using IQR
+Q1 = df.quantile(0.25)
+Q3 = df.quantile(0.75)
 IQR = Q3 - Q1
-lower_bound = Q1 - 1.5 * IQR
-upper_bound = Q3 + 1.5 * IQR
-df_no_outliers = df[~((df < lower_bound) | (df > upper_bound)).any(axis=1)]
-st.write(f"Dataset shape after removing outliers: {df_no_outliers.shape}")
+df = df[~((df < (Q1 - 1.5 * IQR)) | (df > (Q3 + 1.5 * IQR))).any(axis=1)]
 
 # Standardization
-X = df_no_outliers.drop('Outcome', axis=1)
-y = df_no_outliers['Outcome']
+X = df.drop('Outcome', axis=1)
+y = df['Outcome']
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Exploratory Data Analysis (EDA)
-st.write("### Exploratory Data Analysis (EDA)")
+# Data Splitting & Balancing
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+smote = SMOTE(random_state=42)
+X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
 
-# Feature Distributions
-if st.checkbox("Show Feature Distributions"):
-    fig, ax = plt.subplots(figsize=(15, 10))
-    df_no_outliers.hist(bins=20, ax=ax)
-    st.pyplot(fig)
-
-# Boxplots
-if st.checkbox("Show Boxplots"):
-    fig, ax = plt.subplots(figsize=(15, 10))
-    sns.boxplot(data=df_no_outliers, orient="h", ax=ax)
-    st.pyplot(fig)
-
-# Correlation Heatmap
-if st.checkbox("Show Correlation Heatmap"):
-    fig, ax = plt.subplots(figsize=(12, 8))
-    sns.heatmap(df_no_outliers.corr(), annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
-    st.pyplot(fig)
-
-# Pairplot
-if st.checkbox("Show Pairplot of Features"):
-    sample_df = df_no_outliers.sample(300) if len(df_no_outliers) > 300 else df_no_outliers
-    pairplot_fig = sns.pairplot(sample_df, hue="Outcome", palette="Set1")
-    st.pyplot(pairplot_fig)
-
-# SMOTE Balancing
-df_X_train, df_X_test, df_y_train, df_y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-smote = SMOTE(sampling_strategy='auto', random_state=42)
-X_resampled, y_resampled = smote.fit_resample(df_X_train, df_y_train)
-st.write("### Class Distribution After SMOTE")
-st.write(y_resampled.value_counts())
-
-# Model Training
-st.write("### Model Training and Evaluation")
+# Sidebar - Model Selection
+st.sidebar.subheader("📌 Select a Model")
 models = {
     "Logistic Regression": LogisticRegression(random_state=42, max_iter=1000),
     "Decision Tree": DecisionTreeClassifier(random_state=42),
     "Random Forest": RandomForestClassifier(random_state=42, n_estimators=100),
     "Neural Network": MLPClassifier(random_state=42, max_iter=500)
 }
-
-model_choice = st.selectbox("Select a Model", list(models.keys()))
+model_choice = st.sidebar.selectbox("Choose Model", list(models.keys()))
 selected_model = models[model_choice]
+
+# Train Model
 selected_model.fit(X_resampled, y_resampled)
-y_pred = selected_model.predict(df_X_test)
+y_pred = selected_model.predict(X_test)
 
-st.write("### Model Performance")
-st.write(f"Accuracy: {accuracy_score(df_y_test, y_pred):.2f}")
-st.write(f"Precision: {precision_score(df_y_test, y_pred):.2f}")
-st.write(f"Recall: {recall_score(df_y_test, y_pred):.2f}")
-st.write(f"F1 Score: {f1_score(df_y_test, y_pred):.2f}")
+# Model Performance Metrics
+st.sidebar.subheader("📊 Model Performance")
+st.sidebar.write(f"✅ Accuracy: {accuracy_score(y_test, y_pred):.2f}")
+st.sidebar.write(f"🎯 Precision: {precision_score(y_test, y_pred):.2f}")
+st.sidebar.write(f"🔁 Recall: {recall_score(y_test, y_pred):.2f}")
+st.sidebar.write(f"📈 F1 Score: {f1_score(y_test, y_pred):.2f}")
 
-# Confusion Matrix
-fig, ax = plt.subplots()
-disp = ConfusionMatrixDisplay.from_estimator(selected_model, df_X_test, df_y_test, cmap='Blues', ax=ax)
-st.pyplot(fig)
+# Exploratory Data Analysis (EDA)
+st.subheader("📊 Exploratory Data Analysis (EDA)")
+col1, col2 = st.columns(2)
 
-# Classification Report
-st.write("### Classification Report")
-st.text(classification_report(df_y_test, y_pred))
+with col1:
+    st.write("### 🔍 Feature Distributions")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    df.hist(bins=20, ax=ax)
+    st.pyplot(fig)
+
+with col2:
+    st.write("### 🔥 Correlation Heatmap")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.heatmap(df.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
+    st.pyplot(fig)
+
+# Prediction Section
+st.subheader("🤖 Predict Diabetes for a New Patient")
+col1, col2 = st.columns(2)
+
+with col1:
+    pregnancies = st.number_input("Pregnancies", min_value=0, max_value=20, step=1)
+    glucose = st.number_input("Glucose Level", min_value=0, max_value=200, step=1)
+    blood_pressure = st.number_input("Blood Pressure", min_value=0, max_value=150, step=1)
+    skin_thickness = st.number_input("Skin Thickness", min_value=0, max_value=100, step=1)
+
+with col2:
+    insulin = st.number_input("Insulin Level", min_value=0, max_value=500, step=1)
+    bmi = st.number_input("BMI", min_value=0.0, max_value=60.0, step=0.1)
+    diabetes_pedigree = st.number_input("Diabetes Pedigree Function", min_value=0.0, max_value=2.5, step=0.01)
+    age = st.number_input("Age", min_value=1, max_value=120, step=1)
+
+# Store inputs into a dataframe
+user_data = np.array([[pregnancies, glucose, blood_pressure, skin_thickness, insulin, bmi, diabetes_pedigree, age]])
+user_data_scaled = scaler.transform(user_data)  # Standardize input
+
+# Prediction Button
+if st.button("🔮 Predict"):
+    prediction = selected_model.predict(user_data_scaled)
+    prediction_prob = selected_model.predict_proba(user_data_scaled)[:, 1] if hasattr(selected_model, "predict_proba") else None
+
+    if prediction[0] == 1:
+        st.error(f"🚨 The model predicts **Diabetes** with probability: {prediction_prob[0]:.2f}" if prediction_prob is not None else "🚨 The model predicts **Diabetes**.")
+    else:
+        st.success(f"✅ The model predicts **No Diabetes** with probability: {1 - prediction_prob[0]:.2f}" if prediction_prob is not None else "✅ The model predicts **No Diabetes**.")
 
 # ROC Curve
+st.subheader("📈 ROC Curve Analysis")
 if hasattr(selected_model, "predict_proba"):
-    y_prob = selected_model.predict_proba(df_X_test)[:, 1]
-    fpr, tpr, _ = roc_curve(df_y_test, y_prob)
+    y_prob = selected_model.predict_proba(X_test)[:, 1]
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
     fig, ax = plt.subplots()
-    ax.plot(fpr, tpr, label=f"{model_choice} (AUC = {roc_auc_score(df_y_test, y_prob):.2f})")
+    ax.plot(fpr, tpr, label=f"{model_choice} (AUC = {roc_auc_score(y_test, y_prob):.2f})")
     ax.plot([0, 1], [0, 1], 'k--')
     ax.set_xlabel("False Positive Rate")
     ax.set_ylabel("True Positive Rate")
