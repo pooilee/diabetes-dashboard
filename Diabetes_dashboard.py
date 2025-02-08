@@ -84,60 +84,56 @@ st.sidebar.write(f"📈 F1 Score: {f1_score(y_test, y_pred):.2f}")
 
 # Exploratory Data Analysis (EDA)
 st.subheader("📊 Exploratory Data Analysis (EDA)")
-col1, col2 = st.columns(2)
+eda_option = st.radio("Choose an EDA Visualization:", 
+                      ["Feature Distributions", "Correlation Heatmap", "Boxplot", "Pairplot of Features"])
 
-with col1:
-    st.write("### 🔍 Feature Distributions")
-    fig, ax = plt.subplots(figsize=(10, 6))
+# Feature Distributions
+if eda_option == "Feature Distributions":
+    st.write("### 📊 Feature Distributions")
+    fig, ax = plt.subplots(figsize=(12, 6))
     df.hist(bins=20, ax=ax)
     st.pyplot(fig)
 
-with col2:
+# Correlation Heatmap
+elif eda_option == "Correlation Heatmap":
     st.write("### 🔥 Correlation Heatmap")
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.heatmap(df.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
     st.pyplot(fig)
 
+# Boxplot
+elif eda_option == "Boxplot":
+    st.write("### 📦 Boxplot of Features")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.boxplot(data=df, orient="h", ax=ax)
+    st.pyplot(fig)
+
+# Pairplot
+elif eda_option == "Pairplot of Features":
+    st.write("### 🔍 Pairplot of Features")
+    sample_df = df.sample(300) if len(df) > 300 else df  # Limit for performance
+    pairplot_fig = sns.pairplot(sample_df, hue="Outcome", palette="Set1")
+    st.pyplot(pairplot_fig)
+
 # Prediction Section
 st.subheader("🤖 Predict Diabetes for a New Patient")
-col1, col2 = st.columns(2)
+input_data = [
+    st.number_input("Pregnancies", min_value=0, max_value=20, step=1),
+    st.number_input("Glucose Level", min_value=0, max_value=200, step=1),
+    st.number_input("Blood Pressure", min_value=0, max_value=150, step=1),
+    st.number_input("Skin Thickness", min_value=0, max_value=100, step=1),
+    st.number_input("Insulin Level", min_value=0, max_value=500, step=1),
+    st.number_input("BMI", min_value=0.0, max_value=60.0, step=0.1),
+    st.number_input("Diabetes Pedigree Function", min_value=0.0, max_value=2.5, step=0.01),
+    st.number_input("Age", min_value=1, max_value=120, step=1)
+]
 
-with col1:
-    pregnancies = st.number_input("Pregnancies", min_value=0, max_value=20, step=1)
-    glucose = st.number_input("Glucose Level", min_value=0, max_value=200, step=1)
-    blood_pressure = st.number_input("Blood Pressure", min_value=0, max_value=150, step=1)
-    skin_thickness = st.number_input("Skin Thickness", min_value=0, max_value=100, step=1)
-
-with col2:
-    insulin = st.number_input("Insulin Level", min_value=0, max_value=500, step=1)
-    bmi = st.number_input("BMI", min_value=0.0, max_value=60.0, step=0.1)
-    diabetes_pedigree = st.number_input("Diabetes Pedigree Function", min_value=0.0, max_value=2.5, step=0.01)
-    age = st.number_input("Age", min_value=1, max_value=120, step=1)
-
-# Store inputs into a dataframe
-user_data = np.array([[pregnancies, glucose, blood_pressure, skin_thickness, insulin, bmi, diabetes_pedigree, age]])
-user_data_scaled = scaler.transform(user_data)  # Standardize input
-
-# Prediction Button
 if st.button("🔮 Predict"):
-    prediction = selected_model.predict(user_data_scaled)
-    prediction_prob = selected_model.predict_proba(user_data_scaled)[:, 1] if hasattr(selected_model, "predict_proba") else None
-
+    input_data_scaled = scaler.transform([input_data])
+    prediction = selected_model.predict(input_data_scaled)
+    prediction_prob = selected_model.predict_proba(input_data_scaled)[:, 1] if hasattr(selected_model, "predict_proba") else None
+    
     if prediction[0] == 1:
         st.error(f"🚨 The model predicts **Diabetes** with probability: {prediction_prob[0]:.2f}" if prediction_prob is not None else "🚨 The model predicts **Diabetes**.")
     else:
         st.success(f"✅ The model predicts **No Diabetes** with probability: {1 - prediction_prob[0]:.2f}" if prediction_prob is not None else "✅ The model predicts **No Diabetes**.")
-
-# ROC Curve
-st.subheader("📈 ROC Curve Analysis")
-if hasattr(selected_model, "predict_proba"):
-    y_prob = selected_model.predict_proba(X_test)[:, 1]
-    fpr, tpr, _ = roc_curve(y_test, y_prob)
-    fig, ax = plt.subplots()
-    ax.plot(fpr, tpr, label=f"{model_choice} (AUC = {roc_auc_score(y_test, y_prob):.2f})")
-    ax.plot([0, 1], [0, 1], 'k--')
-    ax.set_xlabel("False Positive Rate")
-    ax.set_ylabel("True Positive Rate")
-    ax.set_title("ROC Curve")
-    ax.legend()
-    st.pyplot(fig)
